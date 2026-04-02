@@ -1,0 +1,16 @@
+[project]
+name = "nvd-importer"
+version = "0.1.0"
+description = "Fetch Linux kernel CVEs from NVD and import into KernelScan"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.28.0",
+]
+
+[project.scripts]
+nvd-importer = "nvd_importer.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
