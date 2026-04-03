@@ -1,10 +1,13 @@
-"""Async client for the NIST NVD CVE API v2.0."""
+"""Async client for the NIST NVD CVE API v2.0 with local caching."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import sys
+from pathlib import Path
 from typing import Callable
 
 import httpx
@@ -17,6 +20,36 @@ PAGE_SIZE = 2000
 # With a key it's 50 per 30 s.
 DELAY_NO_KEY = 6.5  # seconds between requests (safe margin)
 DELAY_WITH_KEY = 0.7
+
+DEFAULT_CACHE_DIR = "/tmp/nvd-cache"
+
+
+def _cache_path(cache_dir: str, keyword: str) -> Path:
+    """Return the cache file path for a given keyword search."""
+    safe_name = keyword.replace(" ", "_").replace("/", "_")
+    return Path(cache_dir) / f"{safe_name}.json"
+
+
+def load_cache(cache_dir: str, keyword: str) -> list[dict] | None:
+    """Load cached NVD CVEs from disk. Returns None if no cache exists."""
+    path = _cache_path(cache_dir, keyword)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+        if isinstance(data, list):
+            return data
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Cache read failed (%s), will re-fetch", e)
+    return None
+
+
+def save_cache(cache_dir: str, keyword: str, cves: list[dict]) -> None:
+    """Save raw NVD CVEs to disk cache."""
+    path = _cache_path(cache_dir, keyword)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(cves))
+    logger.info("Cached %d CVEs to %s", len(cves), path)
 
 
 async def fetch_all_cves(
@@ -76,6 +109,23 @@ def fetch_all_cves_sync(
     keyword: str = "linux kernel",
     api_key: str | None = None,
     on_progress: Callable[[int, int], None] | None = None,
+    cache_dir: str | None = DEFAULT_CACHE_DIR,
 ) -> list[dict]:
-    """Synchronous wrapper around :func:`fetch_all_cves`."""
-    return asyncio.run(fetch_all_cves(keyword, api_key, on_progress))
+    """Synchronous wrapper around :func:`fetch_all_cves` with optional caching.
+
+    If *cache_dir* is set, checks for a cached response before hitting the API.
+    After a successful fetch, saves the raw response to cache.
+    """
+    if cache_dir:
+        cached = load_cache(cache_dir, keyword)
+        if cached is not None:
+            if on_progress:
+                on_progress(len(cached), len(cached))
+            return cached
+
+    cves = asyncio.run(fetch_all_cves(keyword, api_key, on_progress))
+
+    if cache_dir:
+        save_cache(cache_dir, keyword, cves)
+
+    return cves
