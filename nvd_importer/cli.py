@@ -28,6 +28,9 @@ def main() -> None:
                         help="Write ingest JSON to file (default: stdout)")
     parser.add_argument("--post", metavar="URL",
                         help="POST to backend (e.g. http://localhost:8000)")
+    parser.add_argument("--backend-api-key", metavar="KEY",
+                        default=os.getenv("KERNELSCAN_API_KEY"),
+                        help="KernelScan backend API key (or set KERNELSCAN_API_KEY env var)")
     parser.add_argument("--batch-size", type=int, default=500,
                         help="CVEs per POST batch (default: 500)")
     parser.add_argument("--pretty", action="store_true",
@@ -82,7 +85,8 @@ def main() -> None:
             print(f"POSTing {len(cves)} CVEs to {args.post}/api/cves "
                   f"(batch size {args.batch_size})...", file=sys.stderr)
         try:
-            result = post_cves(args.post, cves, batch_size=args.batch_size)
+            result = post_cves(args.post, cves, batch_size=args.batch_size,
+                              api_key=args.backend_api_key)
             if not args.quiet:
                 print(f"Done: {result['created']} created, "
                       f"{result['updated']} updated, "
