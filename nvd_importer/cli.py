@@ -8,6 +8,7 @@ import os
 import sys
 
 from nvd_importer import __version__
+from nvd_importer.fetcher import DEFAULT_CACHE_DIR
 from nvd_importer.transformer import build_ingest_payload, transform_batch
 
 
@@ -33,16 +34,26 @@ def main() -> None:
                         help="Pretty-print JSON output")
     parser.add_argument("--quiet", "-q", action="store_true",
                         help="Suppress progress messages")
+    parser.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR,
+                        help=f"Cache directory for NVD responses (default: {DEFAULT_CACHE_DIR})")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Disable caching, always fetch from NVD")
+    parser.add_argument("--no-filter", action="store_true",
+                        help="Disable Linux kernel filtering (import all CVEs matching keyword)")
     parser.add_argument("--version", action="version",
                         version=f"%(prog)s {__version__}")
 
     args = parser.parse_args()
 
+    cache_dir = None if args.no_cache else args.cache_dir
+
     # ── Load CVEs ─────────────────────────────────────────────────────────
     if args.input_file:
-        cves = _load_from_file(args.input_file, quiet=args.quiet)
+        cves = _load_from_file(args.input_file, quiet=args.quiet,
+                               filter_linux=not args.no_filter)
     else:
-        cves = _fetch_from_nvd(args.keyword, args.api_key, quiet=args.quiet)
+        cves = _fetch_from_nvd(args.keyword, args.api_key, quiet=args.quiet,
+                               cache_dir=cache_dir, filter_linux=not args.no_filter)
 
     if not args.quiet:
         print(f"Transformed {len(cves)} CVEs", file=sys.stderr)
@@ -81,7 +92,8 @@ def main() -> None:
             sys.exit(1)
 
 
-def _fetch_from_nvd(keyword: str, api_key: str | None, *, quiet: bool) -> list[dict]:
+def _fetch_from_nvd(keyword: str, api_key: str | None, *, quiet: bool,
+                    cache_dir: str | None, filter_linux: bool) -> list[dict]:
     """Fetch from NVD API and transform to ingest format."""
     from nvd_importer.fetcher import fetch_all_cves_sync
 
@@ -91,17 +103,27 @@ def _fetch_from_nvd(keyword: str, api_key: str | None, *, quiet: bool) -> list[d
 
     if not quiet:
         key_status = "with API key" if api_key else "without API key (slow)"
-        print(f'Fetching "{keyword}" from NVD {key_status}...', file=sys.stderr)
+        cache_status = f", cache: {cache_dir}" if cache_dir else ", no cache"
+        print(f'Fetching "{keyword}" from NVD {key_status}{cache_status}...',
+              file=sys.stderr)
 
-    nvd_cves = fetch_all_cves_sync(keyword=keyword, api_key=api_key, on_progress=on_progress)
+    nvd_cves = fetch_all_cves_sync(keyword=keyword, api_key=api_key,
+                                   on_progress=on_progress, cache_dir=cache_dir)
 
     if not quiet:
         print(f"Fetched {len(nvd_cves)} raw CVEs from NVD", file=sys.stderr)
 
-    return transform_batch(nvd_cves)
+    cves = transform_batch(nvd_cves, filter_linux=filter_linux)
+
+    if not quiet and filter_linux:
+        dropped = len(nvd_cves) - len(cves)
+        print(f"Filtered to {len(cves)} Linux kernel CVEs "
+              f"({dropped} non-kernel CVEs dropped)", file=sys.stderr)
+
+    return cves
 
 
-def _load_from_file(path: str, *, quiet: bool) -> list[dict]:
+def _load_from_file(path: str, *, quiet: bool, filter_linux: bool) -> list[dict]:
     """Load CVEs from a JSON file, auto-detecting format.
 
     If the file has a ``"cves"`` key, treat as pre-processed ingest format.
@@ -125,13 +147,13 @@ def _load_from_file(path: str, *, quiet: bool) -> list[dict]:
         raw = [item["cve"] for item in data["vulnerabilities"] if "cve" in item]
         if not quiet:
             print(f"Detected NVD response format ({len(raw)} CVEs), transforming...", file=sys.stderr)
-        return transform_batch(raw)
+        return transform_batch(raw, filter_linux=filter_linux)
 
     # List of raw NVD CVE objects
     if isinstance(data, list) and data and "id" in data[0]:
         if not quiet:
             print(f"Detected NVD CVE list ({len(data)} CVEs), transforming...", file=sys.stderr)
-        return transform_batch(data)
+        return transform_batch(data, filter_linux=filter_linux)
 
     print(f"Error: unrecognized JSON format in {path}", file=sys.stderr)
     sys.exit(1)

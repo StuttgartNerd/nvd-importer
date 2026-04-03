@@ -2,7 +2,20 @@
 
 from __future__ import annotations
 
+import re
+
 NVD_CWE_PLACEHOLDERS = {"NVD-CWE-Other", "NVD-CWE-noinfo"}
+
+# Reject CVEs whose description matches these patterns — they mention "kernel"
+# but are clearly not Linux kernel vulnerabilities.
+# Strategy: NVD keyword "linux kernel" already filters to relevant results.
+# We only reject things we're *sure* are not the Linux kernel itself.
+# Only reject things that are obviously not the Linux kernel.
+# Better to have a few false positives than lose a real kernel CVE.
+_REJECT_PATTERNS = [
+    re.compile(r"^NVIDIA GPU", re.IGNORECASE),
+    re.compile(r"^Windows Subsystem for Linux", re.IGNORECASE),
+]
 
 
 def transform_cve(nvd_cve: dict) -> dict:
@@ -29,8 +42,24 @@ def transform_cve(nvd_cve: dict) -> dict:
     }
 
 
-def transform_batch(nvd_cves: list[dict]) -> list[dict]:
-    """Transform a list of NVD CVE dicts."""
+def is_linux_kernel_cve(nvd_cve: dict) -> bool:
+    """Return True if the CVE is likely about the Linux kernel.
+
+    NVD keyword search already scopes to "linux kernel", so we only
+    reject CVEs that obviously aren't the Linux kernel itself.
+    Errs on the side of keeping — a few false positives are fine.
+    """
+    desc = _extract_english_description(nvd_cve) or ""
+    for pattern in _REJECT_PATTERNS:
+        if pattern.search(desc):
+            return False
+    return True
+
+
+def transform_batch(nvd_cves: list[dict], filter_linux: bool = True) -> list[dict]:
+    """Transform a list of NVD CVE dicts, optionally filtering to Linux kernel only."""
+    if filter_linux:
+        nvd_cves = [c for c in nvd_cves if is_linux_kernel_cve(c)]
     return [transform_cve(c) for c in nvd_cves]
 
 
