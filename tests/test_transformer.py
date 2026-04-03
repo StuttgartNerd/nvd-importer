@@ -4,17 +4,21 @@ from nvd_importer.transformer import (
     _extract_fix_commit,
     _extract_references,
     build_ingest_payload,
+    is_linux_kernel_cve,
     transform_batch,
     transform_cve,
 )
 from tests.conftest import (
     SAMPLE_NVD_CVE_FULL,
     SAMPLE_NVD_CVE_MINIMAL,
+    SAMPLE_NVD_CVE_NO_CPE,
     SAMPLE_NVD_CVE_V2_ONLY,
     SAMPLE_NVD_CVE_V30,
     SAMPLE_NVD_CVE_WITH_CISA,
+    SAMPLE_NVD_CVE_WITH_KERNEL_CPE,
     SAMPLE_NVD_CVE_WITH_MIXED_REFS,
     SAMPLE_NVD_CVE_WITH_NO_KERNEL_REFS,
+    SAMPLE_NVD_CVE_WITH_NON_KERNEL_CPE,
     SAMPLE_NVD_CVE_WITH_PATCH_REF,
     SAMPLE_NVD_CVE_WITH_SHORT_HASH,
     SAMPLE_NVD_CVE_WITH_STABLE_REF,
@@ -237,3 +241,30 @@ class TestNvdMetadata:
     def test_last_modified_absent(self):
         result = transform_cve(SAMPLE_NVD_CVE_MINIMAL)
         assert result["nvd_last_modified"] is None
+
+
+class TestIsLinuxKernelCve:
+    def test_kernel_cpe_accepted(self):
+        assert is_linux_kernel_cve(SAMPLE_NVD_CVE_WITH_KERNEL_CPE) is True
+
+    def test_non_kernel_cpe_rejected(self):
+        """CVE with CPE for a non-kernel product (e.g. Inspektor Gadget) is rejected."""
+        assert is_linux_kernel_cve(SAMPLE_NVD_CVE_WITH_NON_KERNEL_CPE) is False
+
+    def test_no_cpe_falls_back_to_description(self):
+        """Old CVEs without CPE data are kept (description heuristic)."""
+        assert is_linux_kernel_cve(SAMPLE_NVD_CVE_NO_CPE) is True
+
+    def test_no_cpe_nvidia_rejected(self):
+        """CVE without CPE but NVIDIA description is still rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "NVIDIA GPU driver vulnerability in kernel module."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_batch_filters_non_kernel(self):
+        """transform_batch with filter=True drops non-kernel CPE CVEs."""
+        batch = [SAMPLE_NVD_CVE_WITH_KERNEL_CPE, SAMPLE_NVD_CVE_WITH_NON_KERNEL_CPE]
+        results = transform_batch(batch, filter_linux=True)
+        assert len(results) == 1
+        assert results[0]["id"] == "CVE-2024-5555"

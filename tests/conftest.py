@@ -215,6 +215,69 @@ SAMPLE_NVD_CVE_WITH_CISA = {
     ],
 }
 
+# ── CVEs for CPE-based filtering ─────────────────────────────────────────
+
+SAMPLE_NVD_CVE_WITH_KERNEL_CPE = {
+    "id": "CVE-2024-5555",
+    "descriptions": [
+        {"lang": "en", "value": "A vulnerability in the Linux kernel netfilter subsystem."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "configurations": [
+        {
+            "nodes": [
+                {
+                    "operator": "OR",
+                    "negate": False,
+                    "cpeMatch": [
+                        {
+                            "vulnerable": True,
+                            "criteria": "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*",
+                            "versionEndExcluding": "6.8",
+                        }
+                    ],
+                }
+            ]
+        }
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_NON_KERNEL_CPE = {
+    "id": "CVE-2026-31890",
+    "descriptions": [
+        {"lang": "en", "value": "Inspektor Gadget is a set of tools for data collection on Kubernetes clusters and Linux hosts using eBPF."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "configurations": [
+        {
+            "nodes": [
+                {
+                    "operator": "OR",
+                    "negate": False,
+                    "cpeMatch": [
+                        {
+                            "vulnerable": True,
+                            "criteria": "cpe:2.3:a:linuxfoundation:inspektor_gadget:*:*:*:*:*:*:*:*",
+                            "versionEndExcluding": "0.50.1",
+                        }
+                    ],
+                }
+            ]
+        }
+    ],
+}
+
+SAMPLE_NVD_CVE_NO_CPE = {
+    "id": "CVE-2010-0001",
+    "descriptions": [
+        {"lang": "en", "value": "Buffer overflow in the Linux kernel allows local users to gain privileges."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+}
+
 # ── Sample NVD API paginated response wrapper ────────────────────────────
 
 SAMPLE_NVD_PAGE_1 = {

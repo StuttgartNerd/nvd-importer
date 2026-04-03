@@ -71,12 +71,25 @@ def transform_cve(nvd_cve: dict) -> dict:
 
 
 def is_linux_kernel_cve(nvd_cve: dict) -> bool:
-    """Return True if the CVE is likely about the Linux kernel.
+    """Return True if the CVE is about the Linux kernel.
 
-    NVD keyword search already scopes to "linux kernel", so we only
-    reject CVEs that obviously aren't the Linux kernel itself.
-    Errs on the side of keeping — a few false positives are fine.
+    Uses CPE data when available (authoritative). Falls back to
+    description heuristics for older CVEs without CPE assignments.
     """
+    # If CPE configurations exist, use them as the authoritative source.
+    # Only include CVEs where linux:linux_kernel appears in the CPE match.
+    configs = nvd_cve.get("configurations", [])
+    if configs:
+        for cfg in configs:
+            for node in cfg.get("nodes", []):
+                for match in node.get("cpeMatch", []):
+                    if "linux:linux_kernel" in match.get("criteria", ""):
+                        return True
+        return False
+
+    # No CPE data — fall back to description-based rejection heuristics.
+    # NVD keyword search already scopes to "linux kernel", so we only
+    # reject CVEs that obviously aren't the Linux kernel itself.
     desc = _extract_english_description(nvd_cve) or ""
     for pattern in _REJECT_PATTERNS:
         if pattern.search(desc):
