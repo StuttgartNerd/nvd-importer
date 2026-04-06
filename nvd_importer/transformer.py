@@ -85,6 +85,11 @@ def transform_cve(nvd_cve: dict) -> dict:
     if fix_commit:
         result["fix_commit"] = fix_commit
 
+    # Auto-classify disputed CVEs so the engine skips them
+    vuln_status = nvd_cve.get("vulnStatus", "")
+    if vuln_status in ("Disputed", "Rejected"):
+        result["classification"] = "disputed"
+
     return result
 
 

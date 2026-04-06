@@ -367,3 +367,28 @@ class TestIsLinuxKernelCve:
     def test_nvidia_with_kernel_cpe_still_accepted(self):
         """NVIDIA CVEs that also have linux_kernel CPE are accepted (CPE is authoritative)."""
         assert is_linux_kernel_cve(SAMPLE_NVD_CVE_NVIDIA_WITH_CPE) is True
+
+
+class TestClassification:
+    def test_disputed_cve_classified(self):
+        """CVEs with vulnStatus=Disputed get classification='disputed'."""
+        cve = {**SAMPLE_NVD_CVE_MINIMAL, "vulnStatus": "Disputed"}
+        result = transform_cve(cve)
+        assert result["classification"] == "disputed"
+
+    def test_rejected_cve_classified(self):
+        """CVEs with vulnStatus=Rejected get classification='disputed'."""
+        cve = {**SAMPLE_NVD_CVE_MINIMAL, "vulnStatus": "Rejected"}
+        result = transform_cve(cve)
+        assert result["classification"] == "disputed"
+
+    def test_normal_cve_no_classification(self):
+        """Normal CVEs have no classification key."""
+        result = transform_cve(SAMPLE_NVD_CVE_FULL)
+        assert "classification" not in result
+
+    def test_modified_cve_no_classification(self):
+        """CVEs with vulnStatus=Modified are not classified."""
+        cve = {**SAMPLE_NVD_CVE_MINIMAL, "vulnStatus": "Modified"}
+        result = transform_cve(cve)
+        assert "classification" not in result
