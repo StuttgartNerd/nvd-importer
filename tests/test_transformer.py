@@ -27,6 +27,13 @@ from tests.conftest import (
     SAMPLE_NVD_CVE_WITH_SUBTREE_URL,
     SAMPLE_NVD_CVE_WITH_12CHAR_HASH,
     SAMPLE_NVD_CVE_NVIDIA_WITH_CPE,
+    SAMPLE_NVD_CVE_WITH_LINUS_SHORTHAND,
+    SAMPLE_NVD_CVE_WITH_BRANCH_QUALIFIED_URL,
+    SAMPLE_NVD_CVE_WITH_SUBPATH_URL,
+    SAMPLE_NVD_CVE_WITH_PATCH_URL,
+    SAMPLE_NVD_CVE_WITH_TORVALDS_C_SHORTHAND,
+    SAMPLE_NVD_CVE_WITH_STABLE_BRANCH_URL,
+    SAMPLE_NVD_CVE_WITH_BPF_SHORTHAND,
 )
 
 
@@ -225,6 +232,41 @@ class TestExtractFixCommit:
 
     def test_direct_extract_fix_commit_empty(self):
         assert _extract_fix_commit([]) is None
+
+    def test_linus_shorthand_url(self):
+        """git.kernel.org/linus/{hash} shorthand is matched as mainline."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_LINUS_SHORTHAND)
+        assert result["fix_commit"] == "42d84c8490f9f0931786f1623191fcab397c3d64"
+
+    def test_branch_qualified_url(self):
+        """commit/?h=branch&id=HASH is matched despite the ?h= parameter."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_BRANCH_QUALIFIED_URL)
+        assert result["fix_commit"] == "f94b47c6bde624d6c07f43054087607c52054a95"
+
+    def test_subpath_url(self):
+        """commit/fs/ksmbd?id=HASH with subpath between commit/ and ?id= is matched."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_SUBPATH_URL)
+        assert result["fix_commit"] == "02f76c401d17e409ed45bf7887148fcc22c93c85"
+
+    def test_patch_url(self):
+        """patch/?id=HASH is matched alongside commit/?id=."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_PATCH_URL)
+        assert result["fix_commit"] == "6788ba8aed4e28e90f72d68a9d794e34eac17295"
+
+    def test_torvalds_c_shorthand(self):
+        """git.kernel.org/torvalds/c/{hash} shorthand is matched as mainline."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_TORVALDS_C_SHORTHAND)
+        assert result["fix_commit"] == "3bb2a01caa813d3a1845d378bbe4169ef280b4a6"
+
+    def test_stable_branch_qualified_url(self):
+        """Stable tree commit/?h=linux-5.10.y&id=HASH is matched."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_STABLE_BRANCH_URL)
+        assert result["fix_commit"] == "75454b4bbfc7e6a4dd8338556f36ea9107ddf61a"
+
+    def test_bpf_shorthand_url(self):
+        """git.kernel.org/bpf/bpf/c/{hash} shorthand is matched as subsystem."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_BPF_SHORTHAND)
+        assert result["fix_commit"] == "abc123def456abc123def456abc123def456abc1"
 
 
 class TestExtractReferences:

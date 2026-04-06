@@ -25,20 +25,27 @@ _REJECT_PATTERNS = [
 _KERNEL_COMMIT_PATTERNS = [
     # github.com/torvalds/linux/commit/{hash} — mainline
     (re.compile(r"https?://github\.com/torvalds/linux/commit/([0-9a-f]{7,40})\b"), "mainline"),
+    # git.kernel.org/linus/{hash} — mainline shorthand
+    (re.compile(r"https?://git\.kernel\.org/linus/([0-9a-f]{7,40})\b"), "mainline"),
+    # git.kernel.org/torvalds/c/{hash} — mainline shorthand
+    (re.compile(r"https?://git\.kernel\.org/torvalds/c/([0-9a-f]{7,40})\b"), "mainline"),
     # git.kernel.org torvalds tree (pub/scm path) — mainline
-    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/torvalds/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "mainline"),
+    # Handles: commit/?id=, commit/?h=branch&id=, commit/subpath?id=, patch/?id=
+    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/torvalds/[^\s]*(?:commit|patch)[^\s]*[?&]id=([0-9a-f]{7,40})\b"), "mainline"),
     # git.kernel.org torvalds tree (cgit path) — mainline
-    (re.compile(r"https?://git\.kernel\.org/cgit/linux/kernel/git/torvalds/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "mainline"),
+    (re.compile(r"https?://git\.kernel\.org/cgit/linux/kernel/git/torvalds/[^\s]*(?:commit|patch)[^\s]*[?&]id=([0-9a-f]{7,40})\b"), "mainline"),
     # git.kernel.org ANY kernel subtree (pub/scm) — subsystem maintainer trees (davem/net, netdev, bpf, etc.)
-    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/[^/]+/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "subsystem"),
+    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/[^/]+/[^\s]*(?:commit|patch)[^\s]*[?&]id=([0-9a-f]{7,40})\b"), "subsystem"),
     # git.kernel.org ANY kernel subtree (cgit path)
-    (re.compile(r"https?://git\.kernel\.org/cgit/linux/kernel/git/[^/]+/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "subsystem"),
+    (re.compile(r"https?://git\.kernel\.org/cgit/linux/kernel/git/[^/]+/[^\s]*(?:commit|patch)[^\s]*[?&]id=([0-9a-f]{7,40})\b"), "subsystem"),
+    # git.kernel.org/bpf/bpf/c/{hash} — bpf tree shorthand
+    (re.compile(r"https?://git\.kernel\.org/bpf/[^\s]*/c/([0-9a-f]{7,40})\b"), "subsystem"),
     # git.kernel.org/stable/c/{hash} — stable
     (re.compile(r"https?://git\.kernel\.org/stable/c/([0-9a-f]{7,40})\b"), "stable"),
     # git.kernel.org stable tree (pub/scm path) — stable
-    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/stable/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "stable"),
+    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/stable/[^\s]*(?:commit|patch)[^\s]*[?&]id=([0-9a-f]{7,40})\b"), "stable"),
     # Old-style git.kernel.org with ;h=HASH (after URL-decoding %3B → ;)
-    (re.compile(r"https?://git\.kernel\.org/[^\s]*[;?]h=([0-9a-f]{7,40})\b"), "unknown"),
+    (re.compile(r"https?://git\.kernel\.org/[^\s]*[;?&]h=([0-9a-f]{7,40})\b"), "unknown"),
 ]
 
 _SOURCE_PRIORITY = {"mainline": 0, "subsystem": 1, "stable": 2, "unknown": 3}

@@ -373,6 +373,120 @@ SAMPLE_NVD_CVE_NO_CPE = {
     "weaknesses": [],
 }
 
+# ── CVEs for new URL pattern coverage ───────────────────────────────────
+
+SAMPLE_NVD_CVE_WITH_LINUS_SHORTHAND = {
+    "id": "CVE-2020-10942",
+    "descriptions": [
+        {"lang": "en", "value": "In the Linux kernel before 5.5.8, get_raw_socket in drivers/vhost/net.c lacks validation."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/linus/42d84c8490f9f0931786f1623191fcab397c3d64",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_BRANCH_QUALIFIED_URL = {
+    "id": "CVE-2022-2964",
+    "descriptions": [
+        {"lang": "en", "value": "A flaw was found in the Linux kernel's driver for AX.25 amateur radio protocol."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?h=v5.19-rc2&id=f94b47c6bde624d6c07f43054087607c52054a95",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_SUBPATH_URL = {
+    "id": "CVE-2023-32250",
+    "descriptions": [
+        {"lang": "en", "value": "A use-after-free flaw in ksmbd in the Linux kernel."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/fs/ksmbd?id=02f76c401d17e409ed45bf7887148fcc22c93c85",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_PATCH_URL = {
+    "id": "CVE-2022-3640",
+    "descriptions": [
+        {"lang": "en", "value": "A use-after-free in Bluetooth L2CAP handshake in the Linux kernel."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/patch/?id=6788ba8aed4e28e90f72d68a9d794e34eac17295",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_TORVALDS_C_SHORTHAND = {
+    "id": "CVE-2023-45863",
+    "descriptions": [
+        {"lang": "en", "value": "An issue in the Linux kernel kobject handling."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/torvalds/c/3bb2a01caa813d3a1845d378bbe4169ef280b4a6",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_STABLE_BRANCH_URL = {
+    "id": "CVE-2022-2588",
+    "descriptions": [
+        {"lang": "en", "value": "A use-after-free in route4_change in the Linux kernel."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?h=linux-5.10.y&id=75454b4bbfc7e6a4dd8338556f36ea9107ddf61a",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_BPF_SHORTHAND = {
+    "id": "CVE-2023-39191",
+    "descriptions": [
+        {"lang": "en", "value": "An improper input validation in the eBPF subsystem of the Linux kernel."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/bpf/bpf/c/abc123def456abc123def456abc123def456abc1",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
 # ── Sample NVD API paginated response wrapper ────────────────────────────
 
 SAMPLE_NVD_PAGE_1 = {
