@@ -14,7 +14,9 @@ from tests.conftest import (
     SAMPLE_NVD_CVE_NO_CPE,
     SAMPLE_NVD_CVE_V2_ONLY,
     SAMPLE_NVD_CVE_V30,
+    SAMPLE_NVD_CVE_WITH_CGIT_URL,
     SAMPLE_NVD_CVE_WITH_CISA,
+    SAMPLE_NVD_CVE_WITH_ENCODED_URL,
     SAMPLE_NVD_CVE_WITH_KERNEL_CPE,
     SAMPLE_NVD_CVE_WITH_MIXED_REFS,
     SAMPLE_NVD_CVE_WITH_NO_KERNEL_REFS,
@@ -22,6 +24,9 @@ from tests.conftest import (
     SAMPLE_NVD_CVE_WITH_PATCH_REF,
     SAMPLE_NVD_CVE_WITH_SHORT_HASH,
     SAMPLE_NVD_CVE_WITH_STABLE_REF,
+    SAMPLE_NVD_CVE_WITH_SUBTREE_URL,
+    SAMPLE_NVD_CVE_WITH_12CHAR_HASH,
+    SAMPLE_NVD_CVE_NVIDIA_WITH_CPE,
 )
 
 
@@ -153,10 +158,48 @@ class TestExtractFixCommit:
         result = transform_cve(SAMPLE_NVD_CVE_WITH_STABLE_REF)
         assert result["fix_commit"] == "abcdef1234567890abcdef1234567890abcdef12"
 
-    def test_short_hash_ignored(self):
-        """Abbreviated hashes (< 40 chars) are not returned."""
+    def test_very_short_hash_ignored(self):
+        """Very short hashes (< 12 chars) are not returned."""
         result = transform_cve(SAMPLE_NVD_CVE_WITH_SHORT_HASH)
         assert "fix_commit" not in result
+
+    def test_12char_hash_accepted(self):
+        """12+ char abbreviated hashes are now accepted."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_12CHAR_HASH)
+        assert result["fix_commit"] == "dade3f6a1e4e"
+
+    def test_url_encoded_git_url(self):
+        """Old-style URL-encoded git.kernel.org URLs (%3B) are decoded and matched."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_ENCODED_URL)
+        assert result["fix_commit"] == "c6914a6f261aca0c9f715f883a353ae7ff51fe83"
+
+    def test_subtree_git_url(self):
+        """Subtree URLs (davem/net.git, netdev, bpf) are matched."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_SUBTREE_URL)
+        assert result["fix_commit"] == "7892032cfe67f4bde6fc2ee967e45a8fbaf33756"
+
+    def test_cgit_url(self):
+        """cgit-path URLs (git.kernel.org/cgit/...) are matched."""
+        result = transform_cve(SAMPLE_NVD_CVE_WITH_CGIT_URL)
+        assert result["fix_commit"] == "68a24aba7c593eafa8fd00f2f76407b9b32b47a9"
+
+    def test_full_hash_preferred_over_short(self):
+        """When both full and short hashes exist, full hash wins."""
+        refs = [
+            {"url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dade3f6a1e4e", "tags": ["Patch"]},
+            {"url": "https://github.com/torvalds/linux/commit/aaaa" + "b" * 36, "tags": ["Patch"]},
+        ]
+        result = _extract_fix_commit(refs)
+        assert result == "aaaa" + "b" * 36
+
+    def test_mainline_preferred_over_subsystem(self):
+        """When both mainline and subsystem refs exist, mainline wins."""
+        refs = [
+            {"url": "https://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git/commit/?id=" + "a" * 40, "tags": ["Patch"]},
+            {"url": "https://github.com/torvalds/linux/commit/" + "b" * 40, "tags": ["Patch"]},
+        ]
+        result = _extract_fix_commit(refs)
+        assert result == "b" * 40
 
     def test_no_kernel_refs_returns_none(self):
         """Non-kernel URLs yield no fix_commit."""
@@ -268,3 +311,17 @@ class TestIsLinuxKernelCve:
         results = transform_batch(batch, filter_linux=True)
         assert len(results) == 1
         assert results[0]["id"] == "CVE-2024-5555"
+
+    def test_nvidia_gpu_driver_rejected_by_description(self):
+        """NVIDIA GPU Display Driver CVEs without CPE are rejected."""
+        cve = {
+            **SAMPLE_NVD_CVE_NO_CPE,
+            "descriptions": [
+                {"lang": "en", "value": "NVIDIA GPU Display Driver for Linux contains a vulnerability in the kernel mode layer."},
+            ],
+        }
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_nvidia_with_kernel_cpe_still_accepted(self):
+        """NVIDIA CVEs that also have linux_kernel CPE are accepted (CPE is authoritative)."""
+        assert is_linux_kernel_cve(SAMPLE_NVD_CVE_NVIDIA_WITH_CPE) is True

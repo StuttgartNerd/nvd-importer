@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import unquote
 
 NVD_CWE_PLACEHOLDERS = {"NVD-CWE-Other", "NVD-CWE-noinfo"}
 
@@ -14,23 +15,33 @@ NVD_CWE_PLACEHOLDERS = {"NVD-CWE-Other", "NVD-CWE-noinfo"}
 # Better to have a few false positives than lose a real kernel CVE.
 _REJECT_PATTERNS = [
     re.compile(r"^NVIDIA GPU", re.IGNORECASE),
+    re.compile(r"NVIDIA GPU Display Driver", re.IGNORECASE),
     re.compile(r"^Windows Subsystem for Linux", re.IGNORECASE),
 ]
 
 # Patterns to extract git commit hashes from NVD reference URLs.
 # Each tuple: (compiled regex capturing the hash, source type for priority).
+# URLs are unquoted before matching (handles %3B-encoded old-style URLs).
 _KERNEL_COMMIT_PATTERNS = [
     # github.com/torvalds/linux/commit/{hash} — mainline
     (re.compile(r"https?://github\.com/torvalds/linux/commit/([0-9a-f]{7,40})\b"), "mainline"),
-    # git.kernel.org torvalds tree — mainline
+    # git.kernel.org torvalds tree (pub/scm path) — mainline
     (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/torvalds/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "mainline"),
+    # git.kernel.org torvalds tree (cgit path) — mainline
+    (re.compile(r"https?://git\.kernel\.org/cgit/linux/kernel/git/torvalds/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "mainline"),
+    # git.kernel.org ANY kernel subtree (pub/scm) — subsystem maintainer trees (davem/net, netdev, bpf, etc.)
+    (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/[^/]+/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "subsystem"),
+    # git.kernel.org ANY kernel subtree (cgit path)
+    (re.compile(r"https?://git\.kernel\.org/cgit/linux/kernel/git/[^/]+/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "subsystem"),
     # git.kernel.org/stable/c/{hash} — stable
     (re.compile(r"https?://git\.kernel\.org/stable/c/([0-9a-f]{7,40})\b"), "stable"),
-    # git.kernel.org stable tree — stable
+    # git.kernel.org stable tree (pub/scm path) — stable
     (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/stable/[^\s]*commit/?\?id=([0-9a-f]{7,40})\b"), "stable"),
+    # Old-style git.kernel.org with ;h=HASH (after URL-decoding %3B → ;)
+    (re.compile(r"https?://git\.kernel\.org/[^\s]*[;?]h=([0-9a-f]{7,40})\b"), "unknown"),
 ]
 
-_SOURCE_PRIORITY = {"mainline": 0, "stable": 1}
+_SOURCE_PRIORITY = {"mainline": 0, "subsystem": 1, "stable": 2, "unknown": 3}
 
 
 def transform_cve(nvd_cve: dict) -> dict:
@@ -178,14 +189,16 @@ def _extract_references(nvd_cve: dict) -> list[dict]:
 def _extract_fix_commit(references: list[dict]) -> str | None:
     """Extract the best kernel fix commit hash from reference URLs.
 
-    Prefers patch-tagged mainline commits. Only returns full 40-char hashes.
+    Prefers patch-tagged mainline commits. Prefers full 40-char hashes
+    but accepts shorter hashes (>= 12 chars) as fallback.
+    URL-decodes references to handle old-style %3B-encoded git.kernel.org URLs.
     """
     # Collect candidates: (hash, source_type, is_patch_tagged)
     candidates: list[tuple[str, str, bool]] = []
     seen_hashes: set[str] = set()
 
     for ref in references:
-        url = ref.get("url", "")
+        url = unquote(ref.get("url", ""))
         tags = ref.get("tags", [])
         is_patch = "Patch" in tags
 
@@ -193,7 +206,7 @@ def _extract_fix_commit(references: list[dict]) -> str | None:
             m = pattern.search(url)
             if m:
                 commit_hash = m.group(1)
-                if len(commit_hash) == 40 and commit_hash not in seen_hashes:
+                if len(commit_hash) >= 12 and commit_hash not in seen_hashes:
                     seen_hashes.add(commit_hash)
                     candidates.append((commit_hash, source_type, is_patch))
                 break  # One match per URL is enough
@@ -201,8 +214,12 @@ def _extract_fix_commit(references: list[dict]) -> str | None:
     if not candidates:
         return None
 
-    # Sort: patch-tagged first, then mainline before stable
-    candidates.sort(key=lambda c: (not c[2], _SOURCE_PRIORITY.get(c[1], 99)))
+    # Sort: prefer full hashes, then patch-tagged, then mainline before stable
+    candidates.sort(key=lambda c: (
+        len(c[0]) != 40,  # full hashes first
+        not c[2],          # patch-tagged first
+        _SOURCE_PRIORITY.get(c[1], 99),
+    ))
     return candidates[0][0]
 
 

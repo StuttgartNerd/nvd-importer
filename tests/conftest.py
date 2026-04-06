@@ -130,13 +130,29 @@ SAMPLE_NVD_CVE_WITH_STABLE_REF = {
 SAMPLE_NVD_CVE_WITH_SHORT_HASH = {
     "id": "CVE-2015-0001",
     "descriptions": [
-        {"lang": "en", "value": "A CVE with an abbreviated commit hash."},
+        {"lang": "en", "value": "A CVE with a very short (7-char) commit hash."},
     ],
     "metrics": {},
     "weaknesses": [],
     "references": [
         {
             "url": "https://github.com/torvalds/linux/commit/132c94e",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_12CHAR_HASH = {
+    "id": "CVE-2023-6200",
+    "descriptions": [
+        {"lang": "en", "value": "A CVE with a 12-char abbreviated commit hash."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dade3f6a1e4e",
             "source": "confirm",
             "tags": ["Patch"],
         },
@@ -212,6 +228,85 @@ SAMPLE_NVD_CVE_WITH_CISA = {
             "source": "confirm",
             "tags": ["Patch"],
         },
+    ],
+}
+
+# ── CVEs with URL patterns that were previously unmatched ──────────────────
+
+SAMPLE_NVD_CVE_WITH_ENCODED_URL = {
+    "id": "CVE-2011-1598",
+    "descriptions": [
+        {"lang": "en", "value": "bcm_release in net/can/bcm.c allows denial of service."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git%3Ba=commit%3Bh=c6914a6f261aca0c9f715f883a353ae7ff51fe83",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_SUBTREE_URL = {
+    "id": "CVE-2017-5897",
+    "descriptions": [
+        {"lang": "en", "value": "ip6gre_err in net/ipv6/ip6_gre.c allows out-of-bounds access."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git/commit/?id=7892032cfe67f4bde6fc2ee967e45a8fbaf33756",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_WITH_CGIT_URL = {
+    "id": "CVE-2024-25739",
+    "descriptions": [
+        {"lang": "en", "value": "create_empty_lvol in ubi allows crash via crafted UBI image."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "references": [
+        {
+            "url": "https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=68a24aba7c593eafa8fd00f2f76407b9b32b47a9",
+            "source": "confirm",
+            "tags": ["Patch"],
+        },
+    ],
+}
+
+SAMPLE_NVD_CVE_NVIDIA_WITH_CPE = {
+    "id": "CVE-2022-34674",
+    "descriptions": [
+        {"lang": "en", "value": "NVIDIA GPU Display Driver for Linux contains a vulnerability in the kernel mode layer handler."},
+    ],
+    "metrics": {},
+    "weaknesses": [],
+    "configurations": [
+        {
+            "nodes": [
+                {
+                    "operator": "OR",
+                    "negate": False,
+                    "cpeMatch": [
+                        {
+                            "vulnerable": True,
+                            "criteria": "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*",
+                        },
+                        {
+                            "vulnerable": True,
+                            "criteria": "cpe:2.3:a:nvidia:gpu_display_driver:*:*:*:*:*:linux:*:*",
+                        },
+                    ],
+                }
+            ]
+        }
     ],
 }
 
