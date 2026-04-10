@@ -431,6 +431,34 @@ class TestIsLinuxKernelCve:
         ]}
         assert is_linux_kernel_cve(cve) is False
 
+    def test_intel_proprietary_ethernet_rejected(self):
+        """Intel proprietary Ethernet driver CVEs are rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "Improper conditions check in Linux kernel mode driver for some Intel(R) Ethernet Network Controllers and Adapters E810 Series before version 28.3."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_intel_800_series_rejected(self):
+        """Intel 800 Series proprietary driver CVEs are rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "Incorrect execution-assigned permissions in the Linux kernel mode driver for the Intel(R) 800 Series Ethernet Driver before version 1.15.4."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_mainline_intel_ethernet_kept(self):
+        """Mainline kernel Intel Ethernet driver CVEs (ice/i40e) are NOT rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "A flaw in the ice driver in the Linux kernel allows denial of service via malformed packets."},
+        ]}
+        assert is_linux_kernel_cve(cve) is True
+
+    def test_gnome_settings_daemon_rejected(self):
+        """GNOME Settings Daemon CVEs are rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "Mismatches in interpreting USB authorization policy between GNOME Settings Daemon (GSD) and the Linux kernel."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
 
 class TestClassification:
     def test_disputed_cve_classified(self):

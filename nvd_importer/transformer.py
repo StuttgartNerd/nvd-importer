@@ -29,6 +29,11 @@ _REJECT_PATTERNS = [
     re.compile(r"\bvulnerability in systemd\b", re.IGNORECASE),
     # U-Boot bootloader — separate project
     re.compile(r"\bU-Boot\b"),
+    # Intel proprietary Ethernet driver (out-of-tree, versioned separately)
+    # NOT the mainline ice/i40e/ixgbe drivers
+    re.compile(r"Intel\(R\) (?:Ethernet|800 Series|I350)", re.IGNORECASE),
+    # GNOME Settings Daemon — userspace, not kernel
+    re.compile(r"\bGNOME Settings Daemon\b", re.IGNORECASE),
 ]
 
 # Patterns for CVEs that ARE kernel code but not in mainline — vendor forks.
@@ -36,6 +41,8 @@ _REJECT_PATTERNS = [
 _NOT_IN_MAINLINE_PATTERNS = [
     re.compile(r"Qualcomm Innovation Center.*Android contributions for MSM", re.IGNORECASE),
     re.compile(r"as used in Qualcomm Innovation Center", re.IGNORECASE),
+    # Red Hat-specific kernel patches (e.g. rh_features)
+    re.compile(r"\.el\d.*in the .* subsystem", re.IGNORECASE),
 ]
 
 # Patterns to extract git commit hashes from NVD reference URLs.
