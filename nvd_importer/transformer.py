@@ -46,6 +46,9 @@ _KERNEL_COMMIT_PATTERNS = [
     (re.compile(r"https?://git\.kernel\.org/pub/scm/linux/kernel/git/stable/[^\s]*(?:commit|patch)[^\s]*[?&]id=([0-9a-f]{7,40})\b"), "stable"),
     # Old-style git.kernel.org with ;h=HASH (after URL-decoding %3B → ;)
     (re.compile(r"https?://git\.kernel\.org/[^\s]*[;?&]h=([0-9a-f]{7,40})\b"), "unknown"),
+    # lore.kernel.org Message-ID: git-format-patch embeds the commit hash
+    # as the first component: {40-hex-hash}.{timestamp}.git.{author}@{domain}
+    (re.compile(r"https?://lore\.kernel\.org/[^/]+/([0-9a-f]{40})\.\d+\.git\.[^/]+/"), "mainline"),
 ]
 
 _SOURCE_PRIORITY = {"mainline": 0, "subsystem": 1, "stable": 2, "unknown": 3}
