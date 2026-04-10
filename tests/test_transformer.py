@@ -364,9 +364,72 @@ class TestIsLinuxKernelCve:
         }
         assert is_linux_kernel_cve(cve) is False
 
-    def test_nvidia_with_kernel_cpe_still_accepted(self):
-        """NVIDIA CVEs that also have linux_kernel CPE are accepted (CPE is authoritative)."""
-        assert is_linux_kernel_cve(SAMPLE_NVD_CVE_NVIDIA_WITH_CPE) is True
+    def test_nvidia_with_kernel_cpe_rejected(self):
+        """NVIDIA proprietary driver CVEs are rejected even with linux_kernel CPE."""
+        assert is_linux_kernel_cve(SAMPLE_NVD_CVE_NVIDIA_WITH_CPE) is False
+
+    def test_nvidia_display_driver_rejected(self):
+        """'NVIDIA Display Driver' (without GPU) is rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "NVIDIA Display Driver for Linux contains a vulnerability in the kernel mode driver."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_nvidia_gpu_driver_for_rejected(self):
+        """'NVIDIA GPU Driver for Windows and Linux' is rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "NVIDIA GPU Driver for Windows and Linux contains a vulnerability in the kernel mode layer."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_nvidia_quadro_rejected(self):
+        """'For the NVIDIA Quadro...' is rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "For the NVIDIA Quadro, NVS, GeForce, and Tesla products, NVIDIA GPU Display Driver on Linux R304."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_nvidia_jetson_kernel_kept(self):
+        """NVIDIA Jetson Linux kernel CVEs are NOT rejected (real kernel code)."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "NVIDIA Jetson Linux contains a vulnerability in the kernel where an attacker may cause exposure."},
+        ]}
+        assert is_linux_kernel_cve(cve) is True
+
+    def test_nvidia_tegra_kernel_kept(self):
+        """NVIDIA Tegra kernel CVEs are NOT rejected (real kernel code)."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "Race condition in NVMap in NVIDIA Tegra Linux Kernel 3.10 allows local users to gain privileges."},
+        ]}
+        assert is_linux_kernel_cve(cve) is True
+
+    def test_systemd_rejected(self):
+        """systemd-coredump CVEs are rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "A vulnerability was found in systemd-coredump. This flaw allows an attacker to force a SUID process to crash."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_systemd_vulnerability_in_rejected(self):
+        """'vulnerability in systemd' phrasing is rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "A critical vulnerability in systemd-journald allows remote code execution."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
+
+    def test_systemd_mention_in_kernel_cve_kept(self):
+        """Kernel CVEs that mention systemd in passing are NOT rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "A race condition in the Linux kernel cgroup subsystem when used with systemd-based systems."},
+        ]}
+        assert is_linux_kernel_cve(cve) is True
+
+    def test_uboot_rejected(self):
+        """U-Boot bootloader CVEs are rejected."""
+        cve = {**SAMPLE_NVD_CVE_NO_CPE, "descriptions": [
+            {"lang": "en", "value": "In certain Sonos products, a vulnerability exists in the U-Boot component of the firmware."},
+        ]}
+        assert is_linux_kernel_cve(cve) is False
 
 
 class TestClassification:
@@ -392,3 +455,26 @@ class TestClassification:
         cve = {**SAMPLE_NVD_CVE_MINIMAL, "vulnStatus": "Modified"}
         result = transform_cve(cve)
         assert "classification" not in result
+
+    def test_qualcomm_msm_classified_not_in_mainline(self):
+        """Qualcomm Android MSM vendor-fork CVEs are classified as not_in_mainline."""
+        cve = {
+            **SAMPLE_NVD_CVE_MINIMAL,
+            "descriptions": [
+                {"lang": "en", "value": "The msm_ipc_router_bind_control_port function in the Linux kernel 3.x, as used in Qualcomm Innovation Center (QuIC) Android contributions for MSM devices, allows attackers to gain privileges."},
+            ],
+        }
+        result = transform_cve(cve)
+        assert result["classification"] == "not_in_mainline"
+
+    def test_disputed_takes_precedence_over_not_in_mainline(self):
+        """vulnStatus=Disputed classification overrides not_in_mainline."""
+        cve = {
+            **SAMPLE_NVD_CVE_MINIMAL,
+            "vulnStatus": "Disputed",
+            "descriptions": [
+                {"lang": "en", "value": "A flaw in the Linux kernel 3.x, as used in Qualcomm Innovation Center (QuIC) Android contributions for MSM devices."},
+            ],
+        }
+        result = transform_cve(cve)
+        assert result["classification"] == "disputed"

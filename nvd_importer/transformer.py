@@ -13,10 +13,29 @@ NVD_CWE_PLACEHOLDERS = {"NVD-CWE-Other", "NVD-CWE-noinfo"}
 # We only reject things we're *sure* are not the Linux kernel itself.
 # Only reject things that are obviously not the Linux kernel.
 # Better to have a few false positives than lose a real kernel CVE.
+#
+# These patterns are checked BEFORE CPE data so that proprietary-driver CVEs
+# that NVD incorrectly tags with linux:linux_kernel CPE are still rejected.
 _REJECT_PATTERNS = [
-    re.compile(r"^NVIDIA GPU", re.IGNORECASE),
-    re.compile(r"NVIDIA GPU Display Driver", re.IGNORECASE),
+    # NVIDIA proprietary driver (nvidia.ko) — NOT the open-source nouveau/i915 drivers
+    re.compile(r"NVIDIA (?:GPU )?Display Driver", re.IGNORECASE),
+    re.compile(r"^NVIDIA GPU\b", re.IGNORECASE),
+    re.compile(r"NVIDIA GPU Driver for (?:Windows|Linux)", re.IGNORECASE),
+    re.compile(r"^For the NVIDIA (?:Quadro|NVS|GeForce|Tesla)", re.IGNORECASE),
+    # Windows Subsystem for Linux — not mainline kernel
     re.compile(r"^Windows Subsystem for Linux", re.IGNORECASE),
+    # systemd userspace components (systemd-coredump, systemd-journald, etc.)
+    re.compile(r"\bfound in systemd\b", re.IGNORECASE),
+    re.compile(r"\bvulnerability in systemd\b", re.IGNORECASE),
+    # U-Boot bootloader — separate project
+    re.compile(r"\bU-Boot\b"),
+]
+
+# Patterns for CVEs that ARE kernel code but not in mainline — vendor forks.
+# These get imported but classified as "not_in_mainline" so the engine skips them.
+_NOT_IN_MAINLINE_PATTERNS = [
+    re.compile(r"Qualcomm Innovation Center.*Android contributions for MSM", re.IGNORECASE),
+    re.compile(r"as used in Qualcomm Innovation Center", re.IGNORECASE),
 ]
 
 # Patterns to extract git commit hashes from NVD reference URLs.
@@ -93,15 +112,32 @@ def transform_cve(nvd_cve: dict) -> dict:
     if vuln_status in ("Disputed", "Rejected"):
         result["classification"] = "disputed"
 
+    # Auto-classify vendor-fork CVEs (Qualcomm MSM, etc.) as not_in_mainline
+    if "classification" not in result:
+        desc_text = description or ""
+        for pattern in _NOT_IN_MAINLINE_PATTERNS:
+            if pattern.search(desc_text):
+                result["classification"] = "not_in_mainline"
+                break
+
     return result
 
 
 def is_linux_kernel_cve(nvd_cve: dict) -> bool:
     """Return True if the CVE is about the Linux kernel.
 
-    Uses CPE data when available (authoritative). Falls back to
-    description heuristics for older CVEs without CPE assignments.
+    Description-based reject patterns are checked first (they catch
+    proprietary drivers and userspace software regardless of CPE data).
+    Then CPE data is used when available. Falls back to accepting the
+    CVE for older entries without CPE assignments.
     """
+    # Always check description-based rejection first — catches proprietary
+    # driver CVEs that NVD incorrectly tags with linux:linux_kernel CPE.
+    desc = _extract_english_description(nvd_cve) or ""
+    for pattern in _REJECT_PATTERNS:
+        if pattern.search(desc):
+            return False
+
     # If CPE configurations exist, use them as the authoritative source.
     # Only include CVEs where linux:linux_kernel appears in the CPE match.
     configs = nvd_cve.get("configurations", [])
@@ -113,13 +149,8 @@ def is_linux_kernel_cve(nvd_cve: dict) -> bool:
                         return True
         return False
 
-    # No CPE data — fall back to description-based rejection heuristics.
-    # NVD keyword search already scopes to "linux kernel", so we only
-    # reject CVEs that obviously aren't the Linux kernel itself.
-    desc = _extract_english_description(nvd_cve) or ""
-    for pattern in _REJECT_PATTERNS:
-        if pattern.search(desc):
-            return False
+    # No CPE data — NVD keyword search already scopes to "linux kernel",
+    # and we've passed the reject patterns above, so accept.
     return True
 
 
